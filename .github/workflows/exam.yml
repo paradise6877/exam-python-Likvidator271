@@ -1,0 +1,52 @@
+name: Exam Autotest
+
+on:
+  push:
+    branches:
+      - '**'  # все ветки
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/test_exam.py --maxfail=0 --disable-warnings || true
+
+      - name: Save test output
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/test_exam.py --maxfail=0 --disable-warnings > pytest-output.txt || true
+
+      - name: Fail workflow if score < 60 or student_solution empty
+        run: |
+          # Проверка score
+          if grep -q "TOTAL SCORE: [0-5][0-9]/100" pytest-output.txt; then
+            echo "Score less than 60"
+            exit 1
+          fi
+
+          # Проверка ошибок pytest
+          if grep -q "FAILED" pytest-output.txt; then
+            echo "Some tests failed"
+            exit 1
+          fi
+
+          # Проверка пустого student_solution
+          if grep -q "student_solution.py пустой" pytest-output.txt; then
+            echo "student_solution.py is empty"
+            exit 1
+          fi
